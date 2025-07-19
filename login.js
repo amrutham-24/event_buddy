@@ -119,11 +119,14 @@ async function handleAuthState(session) {
     }
 
     if (role === 'student') {
-      const btn = document.createElement('button');
-      btn.innerText = 'View Events';
-      btn.onclick = () => window.location.href = 'student-dashboard.html';
-      authControls.appendChild(btn);
+    //   const btn = document.createElement('button');
+    //   btn.innerText = 'View Events';
+    //   btn.onclick = () => window.location.href = 'student-dashboard.html';
+    //   authControls.appendChild(btn);
+    console.log('Student dashboard not ready yet');
+
     }
+
 
   } else {
     authControls.innerHTML = `
