@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kochi Event Buddy</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; font-family: 'Inter', sans-serif; }
+    body { margin: 0; padding: 0; background: #f6f9fc; color: #333; }
+    header { background: #2e7d32; color: white; padding: 1rem 2rem; text-align: center; }
+    h1 { margin: 0; font-size: 1.8rem; }
+    .container { max-width: 900px; margin: 2rem auto; padding: 1rem; background: white; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+    .event-card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; background: #fafafa; }
+    .event-card h3 { margin: 0 0 0.5rem; }
+    .event-card p { margin: 0.3rem 0; }
+    footer { text-align: center; padding: 1rem; font-size: 0.9rem; color: #777; }
+    .loader { text-align: center; padding: 2rem; font-size: 1.2rem; color: #555; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Kochi Event Buddy</h1>
+    <p>Your guide to student events across Kochi 🎉</p>
+  </header>
+  <div class="container" id="events-container">
+    <div class="loader">Loading events...</div>
+  </div>
+  <footer>
+    &copy; 2025 Kochi Event Buddy | Made with ❤️ for Hackathons
+  </footer>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const SUPABASE_URL = 'https://zkjffgdvqjuoqxwaipaa.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpramZmZ2R2cWp1b3F4d2FpcGFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI5MzM5NjIsImV4cCI6MjA2ODUwOTk2Mn0.TZdPPXGV1jCXXY9X95ztW1gE2ijWhJt6pVYi4BHEPIk';
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const container = document.getElementById('events-container');
+
+    async function loadEvents() {
+      const { data: events, error } = await supabase.from('events').select('*').order('date', { ascending: true });
+      
+      if (error) {
+        container.innerHTML = '<p>Error loading events.</p>';
+        console.error(error);
+        return;
+      }
+
+      if (events.length === 0) {
+        container.innerHTML = '<p>No upcoming events found.</p>';
+        return;
+      }
+
+      container.innerHTML = '';
+      events.forEach(event => {
+        const card = document.createElement('div');
+        card.className = 'event-card';
+        card.innerHTML = `
+          <h3>${event.title}</h3>
+          <p><strong>Date:</strong> ${event.date}</p>
+          <p><strong>Venue:</strong> ${event.venue}</p>
+          <p><strong>College:</strong> ${event.college}</p>
+          <p>${event.description}</p>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    loadEvents();
+  </script>
+</body>
+</html>
