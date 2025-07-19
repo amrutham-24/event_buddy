@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Kochi Event Buddy</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet"/>
   <style>
     * { box-sizing: border-box; font-family: 'Inter', sans-serif; }
     body { margin: 0; padding: 0; background: #f6f9fc; color: #333; }
@@ -16,6 +16,8 @@
     .event-card p { margin: 0.3rem 0; }
     footer { text-align: center; padding: 1rem; font-size: 0.9rem; color: #777; }
     .loader { text-align: center; padding: 2rem; font-size: 1.2rem; color: #555; }
+    #auth-controls { text-align: center; margin-top: 1rem; }
+    #auth-controls button { margin: 0.5rem; padding: 0.5rem 1rem; }
   </style>
 </head>
 <body>
@@ -23,17 +25,22 @@
     <h1>Kochi Event Buddy</h1>
     <p>Your guide to student events across Kochi 🎉</p>
   </header>
+
+  <!-- Auth Section -->
   <div id="auth-controls">
     <button onclick="login()">Login</button>
-    <button onclick="logout()">Logout</button>
   </div>
+
+  <!-- Events Section -->
   <div class="container" id="events-container">
     <div class="loader">Loading events...</div>
   </div>
+
   <footer>
     &copy; 2025 Kochi Event Buddy | Made with ❤️ for Hackathons
   </footer>
 
+  <!-- Events Loader Script -->
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
@@ -45,14 +52,14 @@
 
     async function loadEvents() {
       const { data: events, error } = await supabase.from('events').select('*').order('date', { ascending: true });
-      
+
       if (error) {
         container.innerHTML = '<p>Error loading events.</p>';
         console.error(error);
         return;
       }
 
-      if (events.length === 0) {
+      if (!events || events.length === 0) {
         container.innerHTML = '<p>No upcoming events found.</p>';
         return;
       }
@@ -74,12 +81,66 @@
 
     loadEvents();
   </script>
-    <!-- Load login.js and bind login/logout functions -->
-  <script type="module">
-    import { login, logout } from './login.js';
-    window.login = login;
-    window.logout = logout;
-  </script>
 
+  <!-- Auth Logic (login/logout + role detection) -->
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const SUPABASE_URL = 'https://zkjffgdvqjuoqxwaipaa.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpramZmZ2R2cWp1b3F4d2FpcGFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI5MzM5NjIsImV4cCI6MjA2ODUwOTk2Mn0.TZdPPXGV1jCXXY9X95ztW1gE2ijWhJt6pVYi4BHEPIk';
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    window.login = async () => {
+      await supabase.auth.signInWithOAuth({ provider: 'google' });
+    };
+
+    window.logout = async () => {
+      await supabase.auth.signOut();
+      location.reload();
+    };
+
+    async function getRole(userId) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .single();
+      return data?.role || null;
+    }
+
+    async function promptForRole(userId, email) {
+      const role = prompt(`Hi ${email}! Are you a "student" or "organizer"?`);
+      const valid = ['student', 'organizer'].includes(role);
+      await supabase.from('profiles').upsert({ id: userId, email, role: valid ? role : 'student' });
+    }
+
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      const authDiv = document.getElementById('auth-controls');
+
+      if (session) {
+        const user = session.user;
+        let role = await getRole(user.id);
+        if (!role) {
+          await promptForRole(user.id, user.email);
+          role = await getRole(user.id);
+        }
+
+        authDiv.innerHTML = `
+          <p>Logged in as ${user.email} (${role})</p>
+          <button onclick="logout()">Logout</button>
+        `;
+
+        if (role === 'organizer') {
+          const createBtn = document.createElement('button');
+          createBtn.textContent = 'Create Event';
+          createBtn.onclick = () => window.location.href = 'create.html';
+          authDiv.appendChild(createBtn);
+        }
+
+      } else {
+        authDiv.innerHTML = `<button onclick="login()">Login</button>`;
+      }
+    });
+  </script>
 </body>
 </html>

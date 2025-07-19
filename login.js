@@ -3,32 +3,46 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
 const SUPABASE_URL = 'https://zkjffgdvqjuoqxwaipaa.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; // keep this safe
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Exported login function
+// Sign in with Google
 export async function login() {
   const { data, error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
-  if (error) console.error('Login error:', error);
+  if (error) console.error('Login Error:', error);
 }
 
-// Exported logout function
+// Sign out
 export async function logout() {
   await supabase.auth.signOut();
   location.reload();
 }
 
-// Exported function to get role from `profiles` table
+// Get role from profiles
 export async function getRole(userId) {
-  const { data, error } = await supabase.from('profiles').select('role').eq('id', userId).single();
-  if (error) {
-    console.error('Error fetching role:', error);
-    return null;
-  }
-  return data?.role || null;
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .single();
+
+  if (data) return data.role;
+  return null;
 }
 
-// Wait for DOM to be ready before modifying elements
+// Ask user for role if not in profile
+async function promptForRole(userId, email) {
+  const role = prompt(`Welcome ${email}! Are you a "student" or "organizer"?`);
+
+  if (role !== 'student' && role !== 'organizer') {
+    alert('Invalid role. Defaulting to student.');
+    return await supabase.from('profiles').upsert({ id: userId, email, role: 'student' });
+  }
+
+  return await supabase.from('profiles').upsert({ id: userId, email, role });
+}
+
+// Listen to auth changes
 document.addEventListener('DOMContentLoaded', () => {
   supabase.auth.onAuthStateChange(async (event, session) => {
     const authControls = document.getElementById('auth-controls');
@@ -36,7 +50,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (session) {
       const user = session.user;
-      const role = await getRole(user.id);
+      let role = await getRole(user.id);
+
+      // If no role, prompt user to choose one and save
+      if (!role) {
+        await promptForRole(user.id, user.email);
+        role = await getRole(user.id); // fetch again
+      }
 
       authControls.innerHTML = `
         Logged in as ${user.email} (${role}) 
