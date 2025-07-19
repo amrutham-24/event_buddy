@@ -23,6 +23,10 @@
     <h1>Kochi Event Buddy</h1>
     <p>Your guide to student events across Kochi 🎉</p>
   </header>
+  <div id="auth-controls">
+    <button onclick="login()">Login</button>
+    <button onclick="logout()">Logout</button>
+  </div>
   <div class="container" id="events-container">
     <div class="loader">Loading events...</div>
   </div>
@@ -70,5 +74,12 @@
 
     loadEvents();
   </script>
+    <!-- Load login.js and bind login/logout functions -->
+  <script type="module">
+    import { login, logout } from './login.js';
+    window.login = login;
+    window.logout = logout;
+  </script>
+
 </body>
 </html>
