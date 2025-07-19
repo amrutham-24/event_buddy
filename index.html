@@ -22,16 +22,20 @@
   </header>
 
   <div id="auth-controls">
-    <button onclick="login()">Login</button>
-    <div id="role-select">
-      <label for="role">Select your role:</label>
-      <select id="role-dropdown">
-        <option value="student">Student</option>
-        <option value="organizer">Organizer</option>
-      </select>
-      <button onclick="saveRole()">Continue</button>
-    </div>
-  </div>
+  <h2>Login or Sign Up</h2>
+  <form id="auth-form">
+    <input type="email" id="email" placeholder="Email" required />
+    <input type="password" id="password" placeholder="Password" required />
+    <select id="role-dropdown" required>
+      <option value="">Select Role</option>
+      <option value="student">Student</option>
+      <option value="organizer">Organizer</option>
+    </select>
+    <br/>
+    <button type="submit">Login / Sign Up</button>
+  </form>
+</div>
+
 
   <div class="container" id="events-container">
     <div class="loader">Loading events...</div>
@@ -46,7 +50,7 @@
 
     const SUPABASE_URL = 'https://zkjffgdvqjuoqxwaipaa.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpramZmZ2R2cWp1b3F4d2FpcGFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI5MzM5NjIsImV4cCI6MjA2ODUwOTk2Mn0.TZdPPXGV1jCXXY9X95ztW1gE2ijWhJt6pVYi4BHEPIk';
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const authDiv = document.getElementById('auth-controls');
     const roleSelect = document.getElementById('role-select');

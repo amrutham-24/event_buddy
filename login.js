@@ -3,22 +3,54 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
 const SUPABASE_URL = 'https://zkjffgdvqjuoqxwaipaa.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpramZmZ2R2cWp1b3F4d2FpcGFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI5MzM5NjIsImV4cCI6MjA2ODUwOTk2Mn0.TZdPPXGV1jCXXY9X95ztW1gE2ijWhJt6pVYi4BHEPIk';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; // Use your full anon key here
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Sign in with Google
+// Login with email and password
 export async function login() {
-  const { data, error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
-  if (error) console.error('Login Error:', error);
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (error) {
+    alert('Login failed: ' + error.message);
+    console.error(error);
+    return;
+  }
+
+  location.reload(); // reload to trigger auth state change listener
 }
 
-// Sign out
+// Signup with email and password
+export async function signup() {
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+
+  const { error } = await supabase.auth.signUp({
+    email,
+    password
+  });
+
+  if (error) {
+    alert('Signup failed: ' + error.message);
+    console.error(error);
+  } else {
+    alert('Signup successful! Please check your email to confirm.');
+  }
+}
+
+// Logout user
 export async function logout() {
   await supabase.auth.signOut();
   location.reload();
 }
 
-// Get role from profiles
+// Get role from profiles table
 export async function getRole(userId) {
   const { data, error } = await supabase
     .from('profiles')
@@ -26,54 +58,79 @@ export async function getRole(userId) {
     .eq('id', userId)
     .single();
 
-  if (data) return data.role;
-  return null;
+  if (error) console.error('Error fetching role:', error);
+
+  return data ? data.role : null;
 }
 
-// Ask user for role if not in profile
+// Prompt user for role and save to Supabase
 async function promptForRole(userId, email) {
   const role = prompt(`Welcome ${email}! Are you a "student" or "organizer"?`);
 
-  if (role !== 'student' && role !== 'organizer') {
-    alert('Invalid role. Defaulting to student.');
-    return await supabase.from('profiles').upsert({ id: userId, email, role: 'student' });
+  const finalRole = (role === 'student' || role === 'organizer') ? role : 'student';
+
+  const { error } = await supabase.from('profiles').upsert({
+    id: userId,
+    email,
+    role: finalRole
+  });
+
+  if (error) {
+    console.error('Failed to save role:', error);
   }
 
-  return await supabase.from('profiles').upsert({ id: userId, email, role });
+  return finalRole;
 }
 
-// Listen to auth changes
+// Listen for auth state changes
 document.addEventListener('DOMContentLoaded', () => {
-  supabase.auth.onAuthStateChange(async (event, session) => {
-    const authControls = document.getElementById('auth-controls');
-    if (!authControls) return;
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    handleAuthState(session);
+  });
 
-    if (session) {
-      const user = session.user;
-      let role = await getRole(user.id);
-
-      // If no role, prompt user to choose one and save
-      if (!role) {
-        await promptForRole(user.id, user.email);
-        role = await getRole(user.id); // fetch again
-      }
-
-      authControls.innerHTML = `
-        Logged in as ${user.email} (${role}) 
-        <button onclick="logout()">Logout</button>
-      `;
-
-      if (role === 'organizer') {
-        const btn = document.createElement('button');
-        btn.innerText = 'Create Event';
-        btn.onclick = () => window.location.href = 'create.html';
-        authControls.appendChild(btn);
-      }
-
-    } else {
-      authControls.innerHTML = `
-        <button onclick="login()">Login</button>
-      `;
-    }
+  supabase.auth.onAuthStateChange((_event, session) => {
+    handleAuthState(session);
   });
 });
+
+// Handle UI updates based on login state
+async function handleAuthState(session) {
+  const authControls = document.getElementById('auth-controls');
+  if (!authControls) return;
+
+  if (session) {
+    const user = session.user;
+    let role = await getRole(user.id);
+
+    if (!role) {
+      role = await promptForRole(user.id, user.email);
+    }
+
+    authControls.innerHTML = `
+      Logged in as ${user.email} (${role}) 
+      <button onclick="logout()">Logout</button>
+    `;
+
+    if (role === 'organizer') {
+      const btn = document.createElement('button');
+      btn.innerText = 'Create Event';
+      btn.onclick = () => window.location.href = 'create.html';
+      authControls.appendChild(btn);
+    }
+
+    if (role === 'student') {
+      const btn = document.createElement('button');
+      btn.innerText = 'View Events';
+      btn.onclick = () => window.location.href = 'student-dashboard.html';
+      authControls.appendChild(btn);
+    }
+
+  } else {
+    authControls.innerHTML = `
+      <input type="email" id="email" placeholder="Email" />
+      <input type="password" id="password" placeholder="Password" />
+      <button onclick="login()">Login</button>
+      <button onclick="signup()">Sign Up</button>
+    `;
+  }
+}
