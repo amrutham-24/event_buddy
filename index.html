@@ -40,7 +40,7 @@
     &copy; 2025 Kochi Event Buddy | Made with ❤️ for Hackathons
   </footer>
 
-  <!-- Events Loader Script -->
+  <!-- Unified Script -->
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
@@ -48,6 +48,61 @@
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpramZmZ2R2cWp1b3F4d2FpcGFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI5MzM5NjIsImV4cCI6MjA2ODUwOTk2Mn0.TZdPPXGV1jCXXY9X95ztW1gE2ijWhJt6pVYi4BHEPIk';
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // Auth functions
+    window.login = async () => {
+      await supabase.auth.signInWithOAuth({ provider: 'google' });
+    };
+
+    window.logout = async () => {
+      await supabase.auth.signOut();
+      location.reload();
+    };
+
+    async function getRole(userId) {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .single();
+      return data?.role || null;
+    }
+
+    async function promptForRole(userId, email) {
+      const role = prompt(`Hi ${email}! Are you a "student" or "organizer"?`);
+      const valid = ['student', 'organizer'].includes(role);
+      await supabase.from('profiles').upsert({ id: userId, email, role: valid ? role : 'student' });
+    }
+
+    // Auth state handling
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      const authDiv = document.getElementById('auth-controls');
+
+      if (session) {
+        const user = session.user;
+        let role = await getRole(user.id);
+        if (!role) {
+          await promptForRole(user.id, user.email);
+          role = await getRole(user.id);
+        }
+
+        authDiv.innerHTML = `
+          <p>Logged in as ${user.email} (${role})</p>
+          <button onclick="logout()">Logout</button>
+        `;
+
+        if (role === 'organizer') {
+          const createBtn = document.createElement('button');
+          createBtn.textContent = 'Create Event';
+          createBtn.onclick = () => window.location.href = 'create.html';
+          authDiv.appendChild(createBtn);
+        }
+
+      } else {
+        authDiv.innerHTML = `<button onclick="login()">Login</button>`;
+      }
+    });
+
+    // Load events from Supabase
     const container = document.getElementById('events-container');
 
     async function loadEvents() {
@@ -80,67 +135,6 @@
     }
 
     loadEvents();
-  </script>
-
-  <!-- Auth Logic (login/logout + role detection) -->
-  <script type="module">
-    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
-
-    const SUPABASE_URL = 'https://zkjffgdvqjuoqxwaipaa.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpramZmZ2R2cWp1b3F4d2FpcGFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI5MzM5NjIsImV4cCI6MjA2ODUwOTk2Mn0.TZdPPXGV1jCXXY9X95ztW1gE2ijWhJt6pVYi4BHEPIk';
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    window.login = async () => {
-      await supabase.auth.signInWithOAuth({ provider: 'google' });
-    };
-
-    window.logout = async () => {
-      await supabase.auth.signOut();
-      location.reload();
-    };
-
-    async function getRole(userId) {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', userId)
-        .single();
-      return data?.role || null;
-    }
-
-    async function promptForRole(userId, email) {
-      const role = prompt(`Hi ${email}! Are you a "student" or "organizer"?`);
-      const valid = ['student', 'organizer'].includes(role);
-      await supabase.from('profiles').upsert({ id: userId, email, role: valid ? role : 'student' });
-    }
-
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      const authDiv = document.getElementById('auth-controls');
-
-      if (session) {
-        const user = session.user;
-        let role = await getRole(user.id);
-        if (!role) {
-          await promptForRole(user.id, user.email);
-          role = await getRole(user.id);
-        }
-
-        authDiv.innerHTML = `
-          <p>Logged in as ${user.email} (${role})</p>
-          <button onclick="logout()">Logout</button>
-        `;
-
-        if (role === 'organizer') {
-          const createBtn = document.createElement('button');
-          createBtn.textContent = 'Create Event';
-          createBtn.onclick = () => window.location.href = 'create.html';
-          authDiv.appendChild(createBtn);
-        }
-
-      } else {
-        authDiv.innerHTML = `<button onclick="login()">Login</button>`;
-      }
-    });
   </script>
 </body>
 </html>
