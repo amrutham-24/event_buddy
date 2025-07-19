@@ -6,41 +6,54 @@ const SUPABASE_URL = 'https://zkjffgdvqjuoqxwaipaa.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; // keep this safe
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// Exported login function
 export async function login() {
   const { data, error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+  if (error) console.error('Login error:', error);
 }
 
+// Exported logout function
 export async function logout() {
   await supabase.auth.signOut();
   location.reload();
 }
 
+// Exported function to get role from `profiles` table
 export async function getRole(userId) {
   const { data, error } = await supabase.from('profiles').select('role').eq('id', userId).single();
-  if (data) return data.role;
-  return null;
+  if (error) {
+    console.error('Error fetching role:', error);
+    return null;
+  }
+  return data?.role || null;
 }
 
-supabase.auth.onAuthStateChange(async (event, session) => {
-  if (session) {
-    const user = session.user;
-    const role = await getRole(user.id);
+// Wait for DOM to be ready before modifying elements
+document.addEventListener('DOMContentLoaded', () => {
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    const authControls = document.getElementById('auth-controls');
+    if (!authControls) return;
 
-    document.getElementById('auth-controls').innerHTML = `
-      Logged in as ${user.email} (${role}) 
-      <button onclick="logout()">Logout</button>
-    `;
+    if (session) {
+      const user = session.user;
+      const role = await getRole(user.id);
 
-    if (role === 'organizer') {
-      const btn = document.createElement('button');
-      btn.innerText = 'Create Event';
-      btn.onclick = () => window.location.href = 'create.html';
-      document.getElementById('auth-controls').appendChild(btn);
+      authControls.innerHTML = `
+        Logged in as ${user.email} (${role}) 
+        <button onclick="logout()">Logout</button>
+      `;
+
+      if (role === 'organizer') {
+        const btn = document.createElement('button');
+        btn.innerText = 'Create Event';
+        btn.onclick = () => window.location.href = 'create.html';
+        authControls.appendChild(btn);
+      }
+
+    } else {
+      authControls.innerHTML = `
+        <button onclick="login()">Login</button>
+      `;
     }
-
-  } else {
-    document.getElementById('auth-controls').innerHTML = `
-      <button onclick="login()">Login</button>
-    `;
-  }
+  });
 });
