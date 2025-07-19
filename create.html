@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Create Event</title>
+  <style>
+    body { font-family: sans-serif; background: #f6f9fc; padding: 2rem; }
+    .form-container { max-width: 600px; margin: auto; background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
+    input, textarea { width: 100%; margin-bottom: 1rem; padding: 0.7rem; border: 1px solid #ccc; border-radius: 4px; }
+    button { padding: 0.7rem 1.5rem; background: #2e7d32; color: white; border: none; border-radius: 4px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="form-container">
+    <h2>Create Event</h2>
+    <form id="event-form">
+      <input type="text" id="title" placeholder="Event Title" required />
+      <input type="date" id="date" required />
+      <input type="text" id="venue" placeholder="Venue" required />
+      <input type="text" id="college" placeholder="College Name" required />
+      <textarea id="description" placeholder="Event Description" rows="4" required></textarea>
+      <button type="submit">Submit</button>
+    </form>
+    <div id="status"></div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const supabase = createClient('https://zkjffgdvqjuoqxwaipaa.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpramZmZ2R2cWp1b3F4d2FpcGFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI5MzM5NjIsImV4cCI6MjA2ODUwOTk2Mn0.TZdPPXGV1jCXXY9X95ztW1gE2ijWhJt6pVYi4BHEPIk');
+
+    const form = document.getElementById('event-form');
+    const status = document.getElementById('status');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const user = (await supabase.auth.getUser()).data.user;
+      if (!user) return status.textContent = "Not authenticated";
+
+      const { title, date, venue, college, description } = form.elements;
+      const { error } = await supabase.from('events').insert([{
+        title: title.value,
+        date: date.value,
+        venue: venue.value,
+        college: college.value,
+        description: description.value,
+        organizer_id: user.id
+      }]);
+
+      if (error) {
+        status.textContent = "Error creating event.";
+        console.error(error);
+      } else {
+        status.textContent = "Event created successfully!";
+        form.reset();
+      }
+    });
+  </script>
+</body>
+</html>

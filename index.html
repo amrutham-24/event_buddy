@@ -6,18 +6,13 @@
   <title>Kochi Event Buddy</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet"/>
   <style>
-    * { box-sizing: border-box; font-family: 'Inter', sans-serif; }
-    body { margin: 0; padding: 0; background: #f6f9fc; color: #333; }
-    header { background: #2e7d32; color: white; padding: 1rem 2rem; text-align: center; }
-    h1 { margin: 0; font-size: 1.8rem; }
+    body { font-family: 'Inter', sans-serif; background: #f6f9fc; color: #333; margin: 0; }
+    header, footer { text-align: center; background: #2e7d32; color: white; padding: 1rem; }
     .container { max-width: 900px; margin: 2rem auto; padding: 1rem; background: white; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
     .event-card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; background: #fafafa; }
-    .event-card h3 { margin: 0 0 0.5rem; }
-    .event-card p { margin: 0.3rem 0; }
-    footer { text-align: center; padding: 1rem; font-size: 0.9rem; color: #777; }
-    .loader { text-align: center; padding: 2rem; font-size: 1.2rem; color: #555; }
     #auth-controls { text-align: center; margin-top: 1rem; }
-    #auth-controls button { margin: 0.5rem; padding: 0.5rem 1rem; }
+    button, select { padding: 0.5rem 1rem; margin: 0.5rem; }
+    #role-select { display: none; }
   </style>
 </head>
 <body>
@@ -26,12 +21,18 @@
     <p>Your guide to student events across Kochi 🎉</p>
   </header>
 
-  <!-- Auth Section -->
   <div id="auth-controls">
     <button onclick="login()">Login</button>
+    <div id="role-select">
+      <label for="role">Select your role:</label>
+      <select id="role-dropdown">
+        <option value="student">Student</option>
+        <option value="organizer">Organizer</option>
+      </select>
+      <button onclick="saveRole()">Continue</button>
+    </div>
   </div>
 
-  <!-- Events Section -->
   <div class="container" id="events-container">
     <div class="loader">Loading events...</div>
   </div>
@@ -40,7 +41,6 @@
     &copy; 2025 Kochi Event Buddy | Made with ❤️ for Hackathons
   </footer>
 
-  <!-- Unified Script -->
   <script type="module">
     import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
 
@@ -48,74 +48,41 @@
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpramZmZ2R2cWp1b3F4d2FpcGFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI5MzM5NjIsImV4cCI6MjA2ODUwOTk2Mn0.TZdPPXGV1jCXXY9X95ztW1gE2ijWhJt6pVYi4BHEPIk';
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Auth functions
+    const authDiv = document.getElementById('auth-controls');
+    const roleSelect = document.getElementById('role-select');
+    const roleDropdown = document.getElementById('role-dropdown');
+    const container = document.getElementById('events-container');
+
+    // Login
     window.login = async () => {
       await supabase.auth.signInWithOAuth({ provider: 'google' });
     };
 
+    // Logout
     window.logout = async () => {
       await supabase.auth.signOut();
       location.reload();
     };
 
+    // Save role after first login
+    window.saveRole = async () => {
+      const user = (await supabase.auth.getUser()).data.user;
+      const role = roleDropdown.value;
+      await supabase.from('profiles').upsert({ id: user.id, email: user.email, role });
+      location.reload();
+    };
+
+    // Get role from Supabase
     async function getRole(userId) {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', userId)
-        .single();
+      const { data } = await supabase.from('profiles').select('role').eq('id', userId).single();
       return data?.role || null;
     }
 
-    async function promptForRole(userId, email) {
-      const role = prompt(`Hi ${email}! Are you a "student" or "organizer"?`);
-      const valid = ['student', 'organizer'].includes(role);
-      await supabase.from('profiles').upsert({ id: userId, email, role: valid ? role : 'student' });
-    }
-
-    // Auth state handling
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      const authDiv = document.getElementById('auth-controls');
-
-      if (session) {
-        const user = session.user;
-        let role = await getRole(user.id);
-        if (!role) {
-          await promptForRole(user.id, user.email);
-          role = await getRole(user.id);
-        }
-
-        authDiv.innerHTML = `
-          <p>Logged in as ${user.email} (${role})</p>
-          <button onclick="logout()">Logout</button>
-        `;
-
-        if (role === 'organizer') {
-          const createBtn = document.createElement('button');
-          createBtn.textContent = 'Create Event';
-          createBtn.onclick = () => window.location.href = 'create.html';
-          authDiv.appendChild(createBtn);
-        }
-
-      } else {
-        authDiv.innerHTML = `<button onclick="login()">Login</button>`;
-      }
-    });
-
     // Load events from Supabase
-    const container = document.getElementById('events-container');
-
     async function loadEvents() {
-      const { data: events, error } = await supabase.from('events').select('*').order('date', { ascending: true });
-
-      if (error) {
-        container.innerHTML = '<p>Error loading events.</p>';
-        console.error(error);
-        return;
-      }
-
-      if (!events || events.length === 0) {
-        container.innerHTML = '<p>No upcoming events found.</p>';
+      const { data: events, error } = await supabase.from('events').select('*').order('date');
+      if (error || !events || events.length === 0) {
+        container.innerHTML = '<p>No events found.</p>';
         return;
       }
 
@@ -133,6 +100,34 @@
         container.appendChild(card);
       });
     }
+
+    // Auth state
+    supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!session) return;
+
+      const user = session.user;
+      const role = await getRole(user.id);
+
+      if (!role) {
+        document.querySelector('#role-select').style.display = 'block';
+      } else {
+        authDiv.innerHTML = `
+          <p>Logged in as ${user.email} (${role})</p>
+          <button onclick="logout()">Logout</button>
+        `;
+        if (role === 'organizer') {
+          const btn = document.createElement('button');
+          btn.textContent = 'Create Event';
+          btn.onclick = () => window.location.href = 'create.html';
+          authDiv.appendChild(btn);
+        } else {
+          const dash = document.createElement('button');
+          dash.textContent = 'My Dashboard';
+          dash.onclick = () => window.location.href = 'student-dashboard.html';
+          authDiv.appendChild(dash);
+        }
+      }
+    });
 
     loadEvents();
   </script>
