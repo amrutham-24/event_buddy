@@ -1,7 +1,7 @@
 [![💻 Built at TinkerSpace](https://img.shields.io/badge/Built%20at-TinkerSpace-blueviolet?style=for-the-badge&label=%F0%9F%92%BBBuilt%20at&labelColor=turquoise&color=white)](https://tinkerhub.org/tinkerspace)
-# 🎉 Kochi Event Buddy
+# 🎉 Event Buddy
 
-Kochi Event Buddy is a lightweight, AI-first event discovery platform for college students and organizers. Built as a hackathon-ready, student-friendly web app, it allows organizers to create events and students to discover relevant events using a smooth, minimal UI powered by Supabase.
+ Event Buddy is a lightweight, AI-first event discovery platform for college students and organizers. Built as a hackathon-ready, student-friendly web app, it allows organizers to create events and students to discover relevant events using a smooth, minimal UI powered by Supabase.
 
 ---
 
